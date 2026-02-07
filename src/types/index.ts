@@ -1,7 +1,8 @@
 export type Product = {
   id: string;
   name: string;
-  price: number; // store as number; format only at UI level
+  price: number;
+  category: "Desserts" | "Drinks" | "Light Meals";
 };
 
 export type CartItem = {
@@ -10,6 +11,7 @@ export type CartItem = {
 };
 
 export type RootStackParamList = {
+  Splash: undefined;
   Home: undefined;
   Cart: undefined;
   Checkout: undefined;

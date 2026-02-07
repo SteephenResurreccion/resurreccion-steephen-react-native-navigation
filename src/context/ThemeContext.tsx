@@ -1,80 +1,88 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
-import { DarkTheme, DefaultTheme, Theme as NavTheme } from "@react-navigation/native";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DarkTheme, DefaultTheme, Theme } from "@react-navigation/native";
 
 type AppTheme = "light" | "dark";
 
-type ThemeTokens = {
+type ThemeColors = {
   background: string;
   card: string;
   text: string;
   mutedText: string;
   border: string;
   primary: string;
-  danger: string;
 };
 
 type ThemeContextValue = {
   theme: AppTheme;
-  colors: ThemeTokens;
+  colors: ThemeColors;
   toggleTheme: () => void;
-  navTheme: NavTheme;
+  navTheme: Theme;
 };
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+const STORAGE_KEY = "@light_sweet_theme";
 
-const lightTokens: ThemeTokens = {
-  background: "#FFFFFF",
-  card: "#F6F7F9",
-  text: "#101114",
-  mutedText: "#5B616E",
-  border: "#E3E5EA",
-  primary: "#2563EB",
-  danger: "#DC2626",
+const light = {
+  background: "#FFF7ED",
+  card: "#FFFFFF",
+  text: "#1F2937",
+  mutedText: "#6B7280",
+  border: "#FED7AA",
+  primary: "#E11D48",
 };
 
-const darkTokens: ThemeTokens = {
-  background: "#0B0D12",
-  card: "#141824",
-  text: "#F3F4F6",
-  mutedText: "#A3AAB8",
-  border: "#263043",
-  primary: "#60A5FA",
-  danger: "#F87171",
+const dark = {
+  background: "#120B0A",
+  card: "#1C1210",
+  text: "#F9FAFB",
+  mutedText: "#9CA3AF",
+  border: "#3B2A24",
+  primary: "#FB7185",
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<AppTheme>("light");
+  const colors = theme === "light" ? light : dark;
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
+      if (v === "light" || v === "dark") setTheme(v);
+    });
+  }, []);
 
   const toggleTheme = () => {
-    // Straight toggle: predictable and easy to test
-    setTheme((t) => (t === "light" ? "dark" : "light"));
+    setTheme((t) => {
+      const next = t === "light" ? "dark" : "light";
+      AsyncStorage.setItem(STORAGE_KEY, next);
+      return next;
+    });
   };
 
-  const colors = theme === "light" ? lightTokens : darkTokens;
-
-  const navTheme = useMemo<NavTheme>(() => {
-    // Keep navigation colors aligned with our tokens
-    const base = theme === "light" ? DefaultTheme : DarkTheme;
-    return {
-      ...base,
+  const navTheme = useMemo(
+    () => ({
+      ...(theme === "light" ? DefaultTheme : DarkTheme),
       colors: {
-        ...base.colors,
+        ...(theme === "light" ? DefaultTheme.colors : DarkTheme.colors),
         background: colors.background,
         card: colors.card,
         text: colors.text,
         border: colors.border,
         primary: colors.primary,
       },
-    };
-  }, [theme, colors]);
+    }),
+    [theme]
+  );
 
-  const value: ThemeContextValue = { theme, colors, toggleTheme, navTheme };
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={{ theme, colors, toggleTheme, navTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
-export function useTheme() {
+export const useTheme = () => {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error("useTheme must be used inside ThemeProvider");
+  if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
   return ctx;
-}
+};

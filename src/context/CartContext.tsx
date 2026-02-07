@@ -4,11 +4,11 @@ import { CartItem, Product } from "../types";
 type CartContextValue = {
   items: CartItem[];
   addToCart: (product: Product) => void;
-  increaseQty: (productId: string) => void;
-  decreaseQty: (productId: string) => void;
-  clearCart: () => void;
+  increase: (id: string) => void;
+  decrease: (id: string) => void;
+  clear: () => void;
+  totalItems: number;
   totalPrice: number;
-  totalItems: number; // sum of quantities
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -18,69 +18,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = (product: Product) => {
     setItems((prev) => {
-      const existing = prev.find((x) => x.product.id === product.id);
-
-      // If already in cart, just increment quantity.
-      if (existing) {
-        return prev.map((x) =>
-          x.product.id === product.id ? { ...x, quantity: x.quantity + 1 } : x
+      const found = prev.find((i) => i.product.id === product.id);
+      if (found) {
+        return prev.map((i) =>
+          i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-
-      // Otherwise, add new item with quantity = 1
       return [...prev, { product, quantity: 1 }];
     });
   };
 
-  const increaseQty = (productId: string) => {
-    setItems((prev) =>
-      prev.map((x) =>
-        x.product.id === productId ? { ...x, quantity: x.quantity + 1 } : x
-      )
+  const increase = (id: string) =>
+    setItems((p) => p.map((i) => (i.product.id === id ? { ...i, quantity: i.quantity + 1 } : i)));
+
+  const decrease = (id: string) =>
+    setItems((p) =>
+      p
+        .map((i) => (i.product.id === id ? { ...i, quantity: i.quantity - 1 } : i))
+        .filter((i) => i.quantity > 0)
     );
-  };
 
-  const decreaseQty = (productId: string) => {
-    setItems((prev) =>
-      prev
-        .map((x) =>
-          x.product.id === productId ? { ...x, quantity: x.quantity - 1 } : x
-        )
-        // Remove item if quantity hits 0
-        .filter((x) => x.quantity > 0)
-    );
-  };
+  const clear = () => setItems([]);
 
-  const clearCart = () => setItems([]);
-
-  const { totalPrice, totalItems } = useMemo(() => {
-    const totals = items.reduce(
-      (acc, item) => {
-        acc.totalPrice += item.product.price * item.quantity;
-        acc.totalItems += item.quantity;
-        return acc;
+  const { totalItems, totalPrice } = useMemo(() => {
+    return items.reduce(
+      (a, i) => {
+        a.totalItems += i.quantity;
+        a.totalPrice += i.product.price * i.quantity;
+        return a;
       },
-      { totalPrice: 0, totalItems: 0 }
+      { totalItems: 0, totalPrice: 0 }
     );
-
-    return totals;
   }, [items]);
 
-  const value: CartContextValue = {
-    items,
-    addToCart,
-    increaseQty,
-    decreaseQty,
-    clearCart,
-    totalPrice,
-    totalItems,
-  };
-
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={{ items, addToCart, increase, decrease, clear, totalItems, totalPrice }}>
+      {children}
+    </CartContext.Provider>
+  );
 }
 
-export function useCart() {
+export const useCart = () => {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart must be used inside CartProvider");
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
   return ctx;
-}
+};
